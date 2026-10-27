@@ -15,6 +15,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.foxium.browser.data.MozillaAccountManager
+import com.foxium.browser.data.MozillaSyncManager
 import com.foxium.browser.data.SearchEngine
 import com.foxium.browser.data.TabModel
 import com.foxium.browser.ui.components.*
@@ -29,8 +30,22 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             val accountManager = remember { MozillaAccountManager(this@MainActivity) }
+            val syncManager = remember { MozillaSyncManager(this@MainActivity) }
             var userProfile by remember { mutableStateOf(accountManager.getProfile()) }
             var showLoginDialog by remember { mutableStateOf(false) }
+
+            val syncedDevices by syncManager.syncedDevices.collectAsState()
+            val credentials by syncManager.syncedCredentials.collectAsState()
+
+            var isToolbarAtTop by remember { mutableStateOf(syncManager.isToolbarAtTop) }
+            var isToolbarCollapsed by remember { mutableStateOf(false) }
+
+            var showTabTray by remember { mutableStateOf(false) }
+            var showMenu by remember { mutableStateOf(false) }
+            var showSyncedTabs by remember { mutableStateOf(false) }
+            var showPasswords by remember { mutableStateOf(false) }
+            var showingPrivateInTray by remember { mutableStateOf(false) }
+            var isDesktopMode by remember { mutableStateOf(false) }
 
             var tabs by remember {
                 val initialTab = TabModel(
@@ -41,11 +56,6 @@ class MainActivity : ComponentActivity() {
             }
             var activeTabId by remember { mutableStateOf(tabs.first().id) }
             var currentSearchEngine by remember { mutableStateOf(SearchEngine.DUCKDUCKGO) }
-
-            var showTabTray by remember { mutableStateOf(false) }
-            var showMenu by remember { mutableStateOf(false) }
-            var showingPrivateInTray by remember { mutableStateOf(false) }
-            var isDesktopMode by remember { mutableStateOf(false) }
 
             var currentWebView by remember { mutableStateOf<WebView?>(null) }
 
@@ -69,12 +79,22 @@ class MainActivity : ComponentActivity() {
                 activeTabId = settingsTab.id
             }
 
+            val toggleToolbarPosition: () -> Unit = {
+                val newPos = !isToolbarAtTop
+                isToolbarAtTop = newPos
+                syncManager.isToolbarAtTop = newPos
+            }
+
             // Handle system back button
             BackHandler(enabled = true) {
                 if (showTabTray) {
                     showTabTray = false
                 } else if (showMenu) {
                     showMenu = false
+                } else if (showSyncedTabs) {
+                    showSyncedTabs = false
+                } else if (showPasswords) {
+                    showPasswords = false
                 } else if (showLoginDialog) {
                     showLoginDialog = false
                 } else if (currentWebView?.canGoBack() == true) {
@@ -88,30 +108,45 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
+            val addressBarComponent = @Composable {
+                AddressBar(
+                    url = activeTab.url,
+                    tabCount = tabs.size,
+                    isPrivate = activeTab.isPrivate,
+                    isLoading = activeTab.progress in 1..99,
+                    isAtTop = isToolbarAtTop,
+                    isCollapsed = isToolbarCollapsed,
+                    onNavigate = { query ->
+                        val targetUrl = currentSearchEngine.buildUrl(query)
+                        tabs = tabs.map {
+                            if (it.id == activeTab.id) it.copy(url = targetUrl, title = query) else it
+                        }
+                    },
+                    onOpenTabs = {
+                        showingPrivateInTray = activeTab.isPrivate
+                        showTabTray = true
+                    },
+                    onOpenMenu = { showMenu = true },
+                    onReload = { currentWebView?.reload() },
+                    onTogglePosition = toggleToolbarPosition,
+                    onToggleCollapse = { isToolbarCollapsed = !isToolbarCollapsed }
+                )
+            }
+
             FoxiumTheme(isPrivateMode = activeTab.isPrivate) {
                 Scaffold(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(FirefoxDarkBg),
+                        .background(FirefoxDeepBg),
+                    topBar = {
+                        if (isToolbarAtTop) {
+                            addressBarComponent()
+                        }
+                    },
                     bottomBar = {
-                        BottomAddressBar(
-                            url = activeTab.url,
-                            tabCount = tabs.size,
-                            isPrivate = activeTab.isPrivate,
-                            isLoading = activeTab.progress in 1..99,
-                            onNavigate = { query ->
-                                val targetUrl = currentSearchEngine.buildUrl(query)
-                                tabs = tabs.map {
-                                    if (it.id == activeTab.id) it.copy(url = targetUrl, title = query) else it
-                                }
-                            },
-                            onOpenTabs = {
-                                showingPrivateInTray = activeTab.isPrivate
-                                showTabTray = true
-                            },
-                            onOpenMenu = { showMenu = true },
-                            onReload = { currentWebView?.reload() }
-                        )
+                        if (!isToolbarAtTop) {
+                            addressBarComponent()
+                        }
                     }
                 ) { innerPadding ->
                     Box(
@@ -131,7 +166,9 @@ class MainActivity : ComponentActivity() {
                                     }
                                 },
                                 onSignInMozilla = { showLoginDialog = true },
-                                onMozillaSettings = openMozillaSettings
+                                onMozillaSettings = openMozillaSettings,
+                                onOpenSyncedTabs = { showSyncedTabs = true },
+                                onOpenPasswords = { showPasswords = true }
                             )
                         } else {
                             BrowserView(
@@ -220,6 +257,7 @@ class MainActivity : ComponentActivity() {
                             canGoForward = activeTab.canGoForward,
                             isDesktopMode = isDesktopMode,
                             isPrivate = activeTab.isPrivate,
+                            isToolbarAtTop = isToolbarAtTop,
                             userProfile = userProfile,
                             onForward = { currentWebView?.goForward() },
                             onReload = { currentWebView?.reload() },
@@ -240,6 +278,10 @@ class MainActivity : ComponentActivity() {
                                 tabs = tabs + privateTab
                                 activeTabId = privateTab.id
                             },
+                            onToggleToolbarPosition = toggleToolbarPosition,
+                            onToggleCollapseToolbar = { isToolbarCollapsed = !isToolbarCollapsed },
+                            onOpenSyncedTabs = { showSyncedTabs = true },
+                            onOpenPasswords = { showPasswords = true },
                             onSignInMozilla = { showLoginDialog = true },
                             onMozillaSettings = openMozillaSettings,
                             onSignOutMozilla = {
@@ -247,6 +289,29 @@ class MainActivity : ComponentActivity() {
                                 userProfile = accountManager.getProfile()
                             },
                             onDismiss = { showMenu = false }
+                        )
+                    }
+
+                    // Synced Tabs Sheet
+                    if (showSyncedTabs) {
+                        SyncedTabsSheet(
+                            devices = syncedDevices,
+                            onOpenTab = { tabUrl ->
+                                val newTab = TabModel(url = tabUrl, title = tabUrl)
+                                tabs = tabs + newTab
+                                activeTabId = newTab.id
+                            },
+                            onSyncNow = { syncManager.triggerSync() },
+                            onDismiss = { showSyncedTabs = false }
+                        )
+                    }
+
+                    // Passwords Vault Sheet
+                    if (showPasswords) {
+                        PasswordsVaultSheet(
+                            credentials = credentials,
+                            onRemoveCredential = { id -> syncManager.removeCredential(id) },
+                            onDismiss = { showPasswords = false }
                         )
                     }
 
@@ -266,7 +331,7 @@ class MainActivity : ComponentActivity() {
                             text = {
                                 Column {
                                     Text(
-                                        text = "Вы можете открыть официальную страницу входа Firefox Accounts или указать почту для привязки синхронизации:",
+                                        text = "Синхронизируйте открытые вкладки с компьютера и сохраненные пароли:",
                                         color = FirefoxTextSecondary,
                                         fontSize = 13.sp
                                     )
@@ -289,14 +354,14 @@ class MainActivity : ComponentActivity() {
                             confirmButton = {
                                 Button(
                                     onClick = {
-                                        val emailToUse = if (inputEmail.isNotBlank()) inputEmail.trim() else "user@mozilla.org"
+                                        val emailToUse = if (inputEmail.isNotBlank()) inputEmail.trim() else "kostya@firefox.org"
                                         accountManager.login(emailToUse)
                                         userProfile = accountManager.getProfile()
                                         showLoginDialog = false
                                     },
                                     colors = ButtonDefaults.buttonColors(containerColor = FirefoxPurple)
                                 ) {
-                                    Text("Привязать", color = androidx.compose.ui.graphics.Color.White)
+                                    Text("Синхронизировать", color = androidx.compose.ui.graphics.Color.White)
                                 }
                             },
                             dismissButton = {
@@ -306,7 +371,7 @@ class MainActivity : ComponentActivity() {
                                         openMozillaAuth()
                                     }
                                 ) {
-                                    Text("Открыть Firefox.com", color = FirefoxOrange)
+                                    Text("Firefox.com Web", color = FirefoxOrange)
                                 }
                             },
                             shape = RoundedCornerShape(16.dp)

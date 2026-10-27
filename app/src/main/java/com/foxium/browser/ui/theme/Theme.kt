@@ -1,6 +1,5 @@
 package com.foxium.browser.ui.theme
 
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
@@ -8,8 +7,8 @@ import androidx.compose.runtime.Composable
 private val FirefoxDarkColorScheme = darkColorScheme(
     primary = FirefoxOrange,
     secondary = FirefoxPurple,
-    tertiary = FirefoxPrivatePurple,
-    background = FirefoxDarkBg,
+    tertiary = FirefoxCyan,
+    background = FirefoxDeepBg,
     surface = FirefoxSurface,
     surfaceVariant = FirefoxSurfaceVariant,
     onPrimary = FirefoxTextPrimary,
@@ -27,8 +26,10 @@ fun FoxiumTheme(
     val colorScheme = if (isPrivateMode) {
         FirefoxDarkColorScheme.copy(
             primary = FirefoxPrivatePurple,
-            background = FirefoxDarkBg,
-            surface = FirefoxSurface
+            secondary = FirefoxFlame,
+            background = FirefoxPrivateBg,
+            surface = FirefoxSurfaceVariant,
+            outline = FirefoxPrivatePurple.copy(alpha = 0.4f)
         )
     } else {
         FirefoxDarkColorScheme

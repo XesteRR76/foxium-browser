@@ -1,6 +1,7 @@
 package com.foxium.browser.ui.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -36,18 +37,20 @@ fun HomeScreen(
     onSearchEngineChange: (SearchEngine) -> Unit,
     onOpenUrl: (String) -> Unit,
     onSignInMozilla: () -> Unit,
-    onMozillaSettings: () -> Unit
+    onMozillaSettings: () -> Unit,
+    onOpenSyncedTabs: () -> Unit,
+    onOpenPasswords: () -> Unit
 ) {
     val topSites = remember {
         listOf(
             TopSite("GitHub", "https://github.com", "GH", Color(0xFF24292E)),
             TopSite("DuckDuckGo", "https://duckduckgo.com", "DDG", Color(0xFFDE5833)),
-            TopSite("Wikipedia", "https://ru.wikipedia.org", "W", Color(0xFF4A4A4A)),
+            TopSite("Wikipedia", "https://ru.wikipedia.org", "W", Color(0xFF333333)),
             TopSite("Reddit", "https://reddit.com", "R", Color(0xFFFF4500)),
-            TopSite("YouTube", "https://youtube.com", "YT", Color(0xFFFF0000)),
-            TopSite("Habr", "https://habr.com", "H", Color(0xFF7AA6BE)),
+            TopSite("YouTube", "https://youtube.com", "YT", Color(0xFFE50914)),
+            TopSite("Habr", "https://habr.com", "H", Color(0xFF5B88A5)),
             TopSite("Telegram", "https://web.telegram.org", "TG", Color(0xFF0088CC)),
-            TopSite("Яндекс", "https://ya.ru", "Я", Color(0xFFFC3F1D))
+            TopSite("Яндекс", "https://ya.ru", "Я", Color(0xFFE02E2E))
         )
     }
 
@@ -57,17 +60,17 @@ fun HomeScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(FirefoxDarkBg)
+            .background(FirefoxDeepBg)
             .verticalScroll(scrollState)
             .padding(horizontal = 20.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Spacer(modifier = Modifier.height(36.dp))
+        Spacer(modifier = Modifier.height(32.dp))
 
-        // Firefox Flame / Logo
+        // Hero Logo with Radial Glow
         Box(
             modifier = Modifier
-                .size(68.dp)
+                .size(76.dp)
                 .clip(CircleShape)
                 .background(
                     Brush.radialGradient(
@@ -84,7 +87,7 @@ fun HomeScreen(
                 imageVector = if (isPrivate) Icons.Default.VpnKey else Icons.Default.LocalFireDepartment,
                 contentDescription = "Foxium Logo",
                 tint = Color.White,
-                modifier = Modifier.size(38.dp)
+                modifier = Modifier.size(42.dp)
             )
         }
 
@@ -93,7 +96,7 @@ fun HomeScreen(
         Text(
             text = if (isPrivate) "Приватный Foxium" else "Foxium",
             color = FirefoxTextPrimary,
-            fontSize = 24.sp,
+            fontSize = 26.sp,
             fontWeight = FontWeight.Bold,
             letterSpacing = (-0.5).sp
         )
@@ -106,85 +109,163 @@ fun HomeScreen(
 
         Spacer(modifier = Modifier.height(20.dp))
 
-        // Mozilla Account Card (Firefox Sync)
+        // Bento-style Mozilla Account / Sync Card
         Surface(
-            shape = RoundedCornerShape(16.dp),
+            shape = RoundedCornerShape(18.dp),
             color = FirefoxSurface,
+            border = androidx.compose.foundation.BorderStroke(1.dp, FirefoxBorder),
             modifier = Modifier.fillMaxWidth()
         ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(14.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(42.dp)
-                        .clip(CircleShape)
-                        .background(
-                            if (userProfile.isLoggedIn) FirefoxSuccessGreen.copy(alpha = 0.15f)
-                            else FirefoxPurple.copy(alpha = 0.15f)
-                        ),
-                    contentAlignment = Alignment.Center
+            Column(modifier = Modifier.padding(14.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(
-                        imageVector = if (userProfile.isLoggedIn) Icons.Default.Sync else Icons.Default.AccountCircle,
-                        contentDescription = "Mozilla Account",
-                        tint = if (userProfile.isLoggedIn) FirefoxSuccessGreen else FirefoxPurple,
-                        modifier = Modifier.size(26.dp)
-                    )
-                }
-
-                Spacer(modifier = Modifier.width(12.dp))
-
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = if (userProfile.isLoggedIn) "Аккаунт Mozilla" else "Синхронизация Firefox",
-                        color = FirefoxTextPrimary,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    Text(
-                        text = if (userProfile.isLoggedIn) {
-                            userProfile.email.ifBlank { "Синхронизация активна" }
-                        } else {
-                            "Войдите для синхронизации вкладок"
-                        },
-                        color = if (userProfile.isLoggedIn) FirefoxSuccessGreen else FirefoxTextSecondary,
-                        fontSize = 12.sp,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-
-                if (!userProfile.isLoggedIn) {
-                    Button(
-                        onClick = onSignInMozilla,
-                        colors = ButtonDefaults.buttonColors(containerColor = FirefoxPurple),
-                        shape = RoundedCornerShape(10.dp),
-                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
+                    Box(
+                        modifier = Modifier
+                            .size(42.dp)
+                            .clip(CircleShape)
+                            .background(
+                                if (userProfile.isLoggedIn) FirefoxSuccessGreen.copy(alpha = 0.15f)
+                                else FirefoxPurple.copy(alpha = 0.15f)
+                            ),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Text(
-                            text = "Войти",
-                            fontSize = 12.sp,
-                            color = Color.White,
-                            fontWeight = FontWeight.Bold
+                        Icon(
+                            imageVector = if (userProfile.isLoggedIn) Icons.Default.Sync else Icons.Default.AccountCircle,
+                            contentDescription = "Mozilla Sync",
+                            tint = if (userProfile.isLoggedIn) FirefoxSuccessGreen else FirefoxPurple,
+                            modifier = Modifier.size(24.dp)
                         )
                     }
-                } else {
-                    IconButton(onClick = onMozillaSettings) {
-                        Icon(
-                            imageVector = Icons.Default.Settings,
-                            contentDescription = "Настройки",
-                            tint = FirefoxTextSecondary
+
+                    Spacer(modifier = Modifier.width(12.dp))
+
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = if (userProfile.isLoggedIn) "Синхронизация Mozilla" else "Аккаунт Firefox",
+                            color = FirefoxTextPrimary,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.SemiBold
                         )
+                        Text(
+                            text = if (userProfile.isLoggedIn) {
+                                userProfile.email.ifBlank { "Синхронизация активна" }
+                            } else {
+                                "Войдите для синхронизации вкладок и паролей"
+                            },
+                            color = if (userProfile.isLoggedIn) FirefoxSuccessGreen else FirefoxTextSecondary,
+                            fontSize = 11.5.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+
+                    if (!userProfile.isLoggedIn) {
+                        Button(
+                            onClick = onSignInMozilla,
+                            colors = ButtonDefaults.buttonColors(containerColor = FirefoxPurple),
+                            shape = RoundedCornerShape(10.dp),
+                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
+                        ) {
+                            Text(
+                                text = "Войти",
+                                fontSize = 12.sp,
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    } else {
+                        IconButton(onClick = onMozillaSettings) {
+                            Icon(
+                                imageVector = Icons.Default.Settings,
+                                contentDescription = "Настройки",
+                                tint = FirefoxTextSecondary
+                            )
+                        }
+                    }
+                }
+
+                // If logged in, show quick shortcuts to Synced Tabs and Passwords!
+                if (userProfile.isLoggedIn) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(0.5.dp)
+                            .background(FirefoxBorder)
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        // Synced tabs quick button
+                        Surface(
+                            shape = RoundedCornerShape(10.dp),
+                            color = FirefoxSurfaceVariant,
+                            modifier = Modifier
+                                .weight(1f)
+                                .clickable { onOpenSyncedTabs() }
+                                .padding(vertical = 4.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Laptop,
+                                    contentDescription = null,
+                                    tint = FirefoxCyan,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "Вкладки с ПК",
+                                    color = FirefoxTextPrimary,
+                                    fontSize = 11.5.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+                        }
+
+                        // Passwords quick button
+                        Surface(
+                            shape = RoundedCornerShape(10.dp),
+                            color = FirefoxSurfaceVariant,
+                            modifier = Modifier
+                                .weight(1f)
+                                .clickable { onOpenPasswords() }
+                                .padding(vertical = 4.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Key,
+                                    contentDescription = null,
+                                    tint = FirefoxSuccessGreen,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "Пароли",
+                                    color = FirefoxTextPrimary,
+                                    fontSize = 11.5.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+                        }
                     }
                 }
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(14.dp))
 
         // Search engine selector chips
         Row(
@@ -199,6 +280,7 @@ fun HomeScreen(
                     color = if (isSelected) {
                         if (isPrivate) FirefoxPrivatePurple else FirefoxOrange
                     } else FirefoxSurface,
+                    border = if (!isSelected) androidx.compose.foundation.BorderStroke(1.dp, FirefoxBorder) else null,
                     modifier = Modifier.clickable { onSearchEngineChange(engine) }
                 ) {
                     Text(
@@ -212,38 +294,62 @@ fun HomeScreen(
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(14.dp))
 
         // Enhanced Tracking Protection Banner
         Surface(
-            shape = RoundedCornerShape(16.dp),
+            shape = RoundedCornerShape(18.dp),
             color = FirefoxSurface,
+            border = androidx.compose.foundation.BorderStroke(1.dp, FirefoxBorder),
             modifier = Modifier.fillMaxWidth()
         ) {
             Row(
                 modifier = Modifier.padding(14.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(
-                    imageVector = Icons.Default.Shield,
-                    contentDescription = "Protection",
-                    tint = if (isPrivate) FirefoxPrivatePurple else FirefoxOrange,
-                    modifier = Modifier.size(30.dp)
-                )
+                Box(
+                    modifier = Modifier
+                        .size(38.dp)
+                        .clip(CircleShape)
+                        .background(
+                            (if (isPrivate) FirefoxPrivatePurple else FirefoxOrange).copy(alpha = 0.15f)
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Shield,
+                        contentDescription = "Protection",
+                        tint = if (isPrivate) FirefoxPrivatePurple else FirefoxOrange,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
 
                 Spacer(modifier = Modifier.width(12.dp))
 
-                Column {
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "Улучшенная защита",
+                        text = "Улучшенная защита от отслеживания",
                         color = FirefoxTextPrimary,
-                        fontSize = 14.sp,
+                        fontSize = 13.5.sp,
                         fontWeight = FontWeight.SemiBold
                     )
                     Text(
-                        text = "Заблокировано трекеров: $blockedCount",
+                        text = "Заблокировано трекеров и рекламы: $blockedCount",
                         color = FirefoxTextSecondary,
-                        fontSize = 12.sp
+                        fontSize = 11.5.sp
+                    )
+                }
+
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = FirefoxSuccessGreen.copy(alpha = 0.15f)
+                ) {
+                    Text(
+                        text = "ВКЛ",
+                        color = FirefoxSuccessGreen,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                     )
                 }
             }
@@ -255,7 +361,7 @@ fun HomeScreen(
             text = "Топ сайтов",
             color = FirefoxTextSecondary,
             fontSize = 13.sp,
-            fontWeight = FontWeight.Medium,
+            fontWeight = FontWeight.SemiBold,
             modifier = Modifier.fillMaxWidth()
         )
 
@@ -281,9 +387,10 @@ fun HomeScreen(
                         ) {
                             Box(
                                 modifier = Modifier
-                                    .size(50.dp)
+                                    .size(52.dp)
                                     .clip(RoundedCornerShape(16.dp))
-                                    .background(site.color),
+                                    .background(site.color)
+                                    .border(1.dp, FirefoxBorder, RoundedCornerShape(16.dp)),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
@@ -299,7 +406,7 @@ fun HomeScreen(
                             Text(
                                 text = site.name,
                                 color = FirefoxTextPrimary,
-                                fontSize = 11.sp,
+                                fontSize = 11.5.sp,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
                                 textAlign = TextAlign.Center
@@ -310,6 +417,6 @@ fun HomeScreen(
             }
         }
 
-        Spacer(modifier = Modifier.height(28.dp))
+        Spacer(modifier = Modifier.height(32.dp))
     }
 }

@@ -3,7 +3,9 @@ package com.foxium.browser.ui.components
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -23,17 +25,24 @@ fun BrowserMenuSheet(
     canGoForward: Boolean,
     isDesktopMode: Boolean,
     isPrivate: Boolean,
+    isToolbarAtTop: Boolean,
     userProfile: MozillaUserProfile,
     onForward: () -> Unit,
     onReload: () -> Unit,
     onToggleDesktop: () -> Unit,
     onShare: () -> Unit,
     onNewPrivateTab: () -> Unit,
+    onToggleToolbarPosition: () -> Unit,
+    onToggleCollapseToolbar: () -> Unit,
+    onOpenSyncedTabs: () -> Unit,
+    onOpenPasswords: () -> Unit,
     onSignInMozilla: () -> Unit,
     onMozillaSettings: () -> Unit,
     onSignOutMozilla: () -> Unit,
     onDismiss: () -> Unit
 ) {
+    val scrollState = rememberScrollState()
+
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         containerColor = FirefoxDarkBg,
@@ -50,13 +59,14 @@ fun BrowserMenuSheet(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(bottom = 24.dp)
+                .verticalScroll(scrollState)
+                .padding(bottom = 28.dp)
         ) {
             // Top quick icon row: Forward, Refresh, Share
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                    .padding(horizontal = 16.dp, vertical = 6.dp),
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
                 IconButton(onClick = { onForward(); onDismiss() }, enabled = canGoForward) {
@@ -91,28 +101,56 @@ fun BrowserMenuSheet(
                     .background(FirefoxBorder)
             )
 
-            // Mozilla Account Integration
+            // Mozilla Sync Section
             if (!userProfile.isLoggedIn) {
                 MenuItem(
                     icon = Icons.Default.AccountCircle,
-                    title = "Войти в аккаунт Mozilla (Синхронизация)",
+                    title = "Войти в аккаунт Mozilla",
                     tint = FirefoxPurple,
                     onClick = { onSignInMozilla(); onDismiss() }
                 )
             } else {
                 MenuItem(
                     icon = Icons.Default.Sync,
-                    title = "Аккаунт Mozilla (${userProfile.email.ifBlank { "Синхронизировано" }})",
-                    tint = FirefoxSuccessGreen,
-                    onClick = { onMozillaSettings(); onDismiss() }
+                    title = "Синхронизированные вкладки",
+                    tint = FirefoxCyan,
+                    onClick = { onOpenSyncedTabs(); onDismiss() }
                 )
                 MenuItem(
-                    icon = Icons.Default.Logout,
-                    title = "Выйти из аккаунта Mozilla",
+                    icon = Icons.Default.Key,
+                    title = "Сохраненные логины и пароли",
+                    tint = FirefoxSuccessGreen,
+                    onClick = { onOpenPasswords(); onDismiss() }
+                )
+                MenuItem(
+                    icon = Icons.Default.Settings,
+                    title = "Настройки профиля (${userProfile.email.ifBlank { "Mozilla" }})",
                     tint = FirefoxTextSecondary,
-                    onClick = { onSignOutMozilla(); onDismiss() }
+                    onClick = { onMozillaSettings(); onDismiss() }
                 )
             }
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(0.5.dp)
+                    .background(FirefoxBorder)
+            )
+
+            // Toolbar position & collapse controls
+            MenuItem(
+                icon = if (isToolbarAtTop) Icons.Default.VerticalAlignBottom else Icons.Default.VerticalAlignTop,
+                title = if (isToolbarAtTop) "Панель адреса: Переместить вниз" else "Панель адреса: Переместить наверх",
+                tint = FirefoxOrange,
+                onClick = { onToggleToolbarPosition(); onDismiss() }
+            )
+
+            MenuItem(
+                icon = Icons.Default.UnfoldLess,
+                title = "Свернуть панель адреса",
+                tint = FirefoxTextSecondary,
+                onClick = { onToggleCollapseToolbar(); onDismiss() }
+            )
 
             MenuItem(
                 icon = Icons.Default.VpnKey,
@@ -134,6 +172,15 @@ fun BrowserMenuSheet(
                 tint = FirefoxSuccessGreen,
                 onClick = onDismiss
             )
+
+            if (userProfile.isLoggedIn) {
+                MenuItem(
+                    icon = Icons.Default.Logout,
+                    title = "Выйти из аккаунта",
+                    tint = FirefoxTextSecondary,
+                    onClick = { onSignOutMozilla(); onDismiss() }
+                )
+            }
         }
     }
 }
@@ -149,7 +196,7 @@ private fun MenuItem(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick() }
-            .padding(horizontal = 24.dp, vertical = 14.dp),
+            .padding(horizontal = 22.dp, vertical = 13.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(
@@ -162,7 +209,7 @@ private fun MenuItem(
         Text(
             text = title,
             color = FirefoxTextPrimary,
-            fontSize = 15.sp
+            fontSize = 14.5.sp
         )
     }
 }
