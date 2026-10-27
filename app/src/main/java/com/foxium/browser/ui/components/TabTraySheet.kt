@@ -41,7 +41,15 @@ fun TabTraySheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         containerColor = FirefoxDarkBg,
-        dragHandle = { BottomSheetDefaults.DragHandle(color = FirefoxBorder) }
+        dragHandle = {
+            Box(
+                modifier = Modifier
+                    .padding(vertical = 12.dp)
+                    .size(width = 36.dp, height = 4.dp)
+                    .clip(RoundedCornerShape(2.dp))
+                    .background(FirefoxBorder)
+            )
+        }
     ) {
         Column(
             modifier = Modifier

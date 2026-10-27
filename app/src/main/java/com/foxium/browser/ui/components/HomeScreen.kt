@@ -107,7 +107,7 @@ fun HomeScreen(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            SearchEngine.values().forEach { engine ->
+            SearchEngine.entries.forEach { engine ->
                 val isSelected = engine == currentSearchEngine
                 Surface(
                     shape = RoundedCornerShape(16.dp),

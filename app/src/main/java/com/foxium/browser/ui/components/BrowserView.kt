@@ -131,7 +131,7 @@ fun BrowserView(
         // Firefox slim progress indicator at top of page content
         if (isLoading && currentProgress < 100) {
             LinearProgressIndicator(
-                progress = { currentProgress / 100f },
+                progress = currentProgress / 100f,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(2.5.dp)
