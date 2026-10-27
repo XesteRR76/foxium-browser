@@ -117,14 +117,32 @@ fun SyncedTabsSheet(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .weight(1f),
+                        .weight(1f)
+                        .padding(24.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        text = "Нет синхронизированных устройств",
-                        color = FirefoxTextSecondary,
-                        fontSize = 14.sp
-                    )
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(
+                            imageVector = Icons.Default.CloudSync,
+                            contentDescription = null,
+                            tint = FirefoxTextSecondary,
+                            modifier = Modifier.size(48.dp)
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(
+                            text = "Нет синхронизированных вкладок",
+                            color = FirefoxTextPrimary,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = "Войдите в аккаунт Mozilla с паролем, чтобы безопасно загрузить открытые вкладки с ваших компьютеров.",
+                            color = FirefoxTextSecondary,
+                            fontSize = 12.sp,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        )
+                    }
                 }
             } else {
                 LazyColumn(

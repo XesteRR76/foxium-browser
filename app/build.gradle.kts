@@ -11,8 +11,8 @@ android {
         applicationId = "com.foxium.browser"
         minSdk = 26
         targetSdk = 34
-        versionCode = 4
-        versionName = "1.2.1"
+        versionCode = 5
+        versionName = "1.3.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -79,4 +79,5 @@ dependencies {
     implementation(libs.androidx.material3)
     implementation(libs.androidx.material.icons.extended)
     implementation(libs.androidx.webkit)
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
 }

@@ -3,23 +3,37 @@ package com.foxium.browser
 import android.content.Intent
 import android.os.Bundle
 import android.webkit.WebView
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.foxium.browser.data.MozillaAccountManager
 import com.foxium.browser.data.MozillaSyncManager
 import com.foxium.browser.data.SearchEngine
 import com.foxium.browser.data.TabModel
+import com.foxium.browser.sync.SyncResult
 import com.foxium.browser.ui.components.*
 import com.foxium.browser.ui.theme.*
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
 
@@ -29,6 +43,7 @@ class MainActivity : ComponentActivity() {
         val incomingUrl = intent?.data?.toString() ?: ""
 
         setContent {
+            val scope = rememberCoroutineScope()
             val accountManager = remember { MozillaAccountManager(this@MainActivity) }
             val syncManager = remember { MozillaSyncManager(this@MainActivity) }
             var userProfile by remember { mutableStateOf(accountManager.getProfile()) }
@@ -47,6 +62,8 @@ class MainActivity : ComponentActivity() {
             var showingPrivateInTray by remember { mutableStateOf(false) }
             var isDesktopMode by remember { mutableStateOf(false) }
 
+            var currentWebView by remember { mutableStateOf<WebView?>(null) }
+
             var tabs by remember {
                 val initialTab = TabModel(
                     url = if (incomingUrl.isNotBlank()) incomingUrl else "foxium:home",
@@ -56,8 +73,6 @@ class MainActivity : ComponentActivity() {
             }
             var activeTabId by remember { mutableStateOf(tabs.first().id) }
             var currentSearchEngine by remember { mutableStateOf(SearchEngine.DUCKDUCKGO) }
-
-            var currentWebView by remember { mutableStateOf<WebView?>(null) }
 
             val activeTab = tabs.find { it.id == activeTabId } ?: tabs.first()
 
@@ -286,6 +301,7 @@ class MainActivity : ComponentActivity() {
                             onMozillaSettings = openMozillaSettings,
                             onSignOutMozilla = {
                                 accountManager.logout()
+                                syncManager.clearAll()
                                 userProfile = accountManager.getProfile()
                             },
                             onDismiss = { showMenu = false }
@@ -301,7 +317,9 @@ class MainActivity : ComponentActivity() {
                                 tabs = tabs + newTab
                                 activeTabId = newTab.id
                             },
-                            onSyncNow = { syncManager.triggerSync() },
+                            onSyncNow = {
+                                showLoginDialog = true
+                            },
                             onDismiss = { showSyncedTabs = false }
                         )
                     }
@@ -315,57 +333,183 @@ class MainActivity : ComponentActivity() {
                         )
                     }
 
-                    // Mozilla Account Login Dialog
+                    // Real Mozilla Sync Authentication Dialog
                     if (showLoginDialog) {
-                        var inputEmail by remember { mutableStateOf("") }
+                        var emailInput by remember { mutableStateOf(userProfile.email.ifBlank { "" }) }
+                        var passwordInput by remember { mutableStateOf("") }
+                        var twoFactorInput by remember { mutableStateOf("") }
+                        var showPassword by remember { mutableStateOf(false) }
+                        var isSyncing by remember { mutableStateOf(false) }
+                        var errorMessage by remember { mutableStateOf<String?>(null) }
+
                         AlertDialog(
-                            onDismissRequest = { showLoginDialog = false },
+                            onDismissRequest = {
+                                if (!isSyncing) showLoginDialog = false
+                            },
                             containerColor = FirefoxSurface,
                             title = {
                                 Text(
-                                    text = "Вход в аккаунт Mozilla",
+                                    text = "Синхронизация Mozilla Sync",
                                     color = FirefoxTextPrimary,
-                                    fontSize = 18.sp
+                                    fontSize = 18.sp,
+                                    fontWeight = FontWeight.Bold
                                 )
                             },
                             text = {
-                                Column {
+                                Column(
+                                    modifier = Modifier.verticalScroll(rememberScrollState())
+                                ) {
                                     Text(
-                                        text = "Синхронизируйте открытые вкладки с компьютера и сохраненные пароли:",
+                                        text = "Для расшифровки ваших вкладок и паролей с серверов Mozilla требуются учетные данные аккаунта (Zero-Knowledge):",
                                         color = FirefoxTextSecondary,
-                                        fontSize = 13.sp
+                                        fontSize = 12.5.sp
                                     )
                                     Spacer(modifier = Modifier.height(14.dp))
+
+                                    // Email
                                     OutlinedTextField(
-                                        value = inputEmail,
-                                        onValueChange = { inputEmail = it },
-                                        placeholder = { Text("example@mozilla.com", color = FirefoxTextSecondary) },
+                                        value = emailInput,
+                                        onValueChange = { emailInput = it },
+                                        label = { Text("Email аккаунта Mozilla") },
+                                        placeholder = { Text("user@mozilla.org") },
                                         singleLine = true,
+                                        enabled = !isSyncing,
+                                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                                         colors = OutlinedTextFieldDefaults.colors(
                                             focusedBorderColor = FirefoxPurple,
                                             unfocusedBorderColor = FirefoxBorder,
                                             focusedTextColor = FirefoxTextPrimary,
-                                            unfocusedTextColor = FirefoxTextPrimary
+                                            unfocusedTextColor = FirefoxTextPrimary,
+                                            focusedLabelColor = FirefoxPurple,
+                                            unfocusedLabelColor = FirefoxTextSecondary
                                         ),
                                         modifier = Modifier.fillMaxWidth()
                                     )
+
+                                    Spacer(modifier = Modifier.height(10.dp))
+
+                                    // Password
+                                    OutlinedTextField(
+                                        value = passwordInput,
+                                        onValueChange = { passwordInput = it },
+                                        label = { Text("Пароль от аккаунта") },
+                                        singleLine = true,
+                                        enabled = !isSyncing,
+                                        visualTransformation = if (showPassword) VisualTransformation.None else PasswordVisualTransformation(),
+                                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                                        trailingIcon = {
+                                            IconButton(onClick = { showPassword = !showPassword }) {
+                                                Icon(
+                                                    imageVector = if (showPassword) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                                    contentDescription = null,
+                                                    tint = FirefoxTextSecondary
+                                                )
+                                            }
+                                        },
+                                        colors = OutlinedTextFieldDefaults.colors(
+                                            focusedBorderColor = FirefoxPurple,
+                                            unfocusedBorderColor = FirefoxBorder,
+                                            focusedTextColor = FirefoxTextPrimary,
+                                            unfocusedTextColor = FirefoxTextPrimary,
+                                            focusedLabelColor = FirefoxPurple,
+                                            unfocusedLabelColor = FirefoxTextSecondary
+                                        ),
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
+
+                                    Spacer(modifier = Modifier.height(10.dp))
+
+                                    // 2FA Code
+                                    OutlinedTextField(
+                                        value = twoFactorInput,
+                                        onValueChange = { twoFactorInput = it },
+                                        label = { Text("Код 2FA (если включен)") },
+                                        placeholder = { Text("6-значный код из аутентификатора") },
+                                        singleLine = true,
+                                        enabled = !isSyncing,
+                                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                        colors = OutlinedTextFieldDefaults.colors(
+                                            focusedBorderColor = FirefoxPurple,
+                                            unfocusedBorderColor = FirefoxBorder,
+                                            focusedTextColor = FirefoxTextPrimary,
+                                            unfocusedTextColor = FirefoxTextPrimary,
+                                            focusedLabelColor = FirefoxPurple,
+                                            unfocusedLabelColor = FirefoxTextSecondary
+                                        ),
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
+
+                                    if (errorMessage != null) {
+                                        Spacer(modifier = Modifier.height(10.dp))
+                                        Text(
+                                            text = errorMessage!!,
+                                            color = FirefoxErrorRed,
+                                            fontSize = 12.sp
+                                        )
+                                    }
+
+                                    if (isSyncing) {
+                                        Spacer(modifier = Modifier.height(14.dp))
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.Center
+                                        ) {
+                                            CircularProgressIndicator(
+                                                modifier = Modifier.size(20.dp),
+                                                color = FirefoxPurple,
+                                                strokeWidth = 2.dp
+                                            )
+                                            Spacer(modifier = Modifier.width(10.dp))
+                                            Text(
+                                                text = "Связь с серверами Mozilla...",
+                                                color = FirefoxTextSecondary,
+                                                fontSize = 12.sp
+                                            )
+                                        }
+                                    }
                                 }
                             },
                             confirmButton = {
                                 Button(
+                                    enabled = !isSyncing && emailInput.isNotBlank() && passwordInput.isNotBlank(),
                                     onClick = {
-                                        val emailToUse = if (inputEmail.isNotBlank()) inputEmail.trim() else "kostya@firefox.org"
-                                        accountManager.login(emailToUse)
-                                        userProfile = accountManager.getProfile()
-                                        showLoginDialog = false
+                                        scope.launch {
+                                            isSyncing = true
+                                            errorMessage = null
+                                            val result = syncManager.performRealSync(
+                                                email = emailInput.trim(),
+                                                password = passwordInput,
+                                                twoFactorCode = if (twoFactorInput.isNotBlank()) twoFactorInput.trim() else null
+                                            )
+                                            isSyncing = false
+                                            when (result) {
+                                                is SyncResult.Success -> {
+                                                    accountManager.login(emailInput.trim())
+                                                    userProfile = accountManager.getProfile()
+                                                    showLoginDialog = false
+                                                    val tabCount = result.devices.sumOf { it.tabs.size }
+                                                    val passCount = result.credentials.size
+                                                    Toast.makeText(
+                                                        this@MainActivity,
+                                                        "Синхронизировано: $tabCount вкладок, $passCount паролей",
+                                                        Toast.LENGTH_LONG
+                                                    ).show()
+                                                }
+                                                is SyncResult.Error -> {
+                                                    errorMessage = result.message
+                                                }
+                                            }
+                                        }
                                     },
                                     colors = ButtonDefaults.buttonColors(containerColor = FirefoxPurple)
                                 ) {
-                                    Text("Синхронизировать", color = androidx.compose.ui.graphics.Color.White)
+                                    Text("Синхронизировать", color = Color.White, fontWeight = FontWeight.Bold)
                                 }
                             },
                             dismissButton = {
                                 TextButton(
+                                    enabled = !isSyncing,
                                     onClick = {
                                         showLoginDialog = false
                                         openMozillaAuth()

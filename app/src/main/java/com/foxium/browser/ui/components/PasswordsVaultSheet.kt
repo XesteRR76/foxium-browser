@@ -173,14 +173,32 @@ fun PasswordsVaultSheet(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .weight(1f),
+                        .weight(1f)
+                        .padding(24.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        text = "Логины не найдены",
-                        color = FirefoxTextSecondary,
-                        fontSize = 14.sp
-                    )
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(
+                            imageVector = Icons.Default.LockReset,
+                            contentDescription = null,
+                            tint = FirefoxTextSecondary,
+                            modifier = Modifier.size(48.dp)
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(
+                            text = if (searchQuery.isNotEmpty()) "Логины не найдены" else "Нет сохраненных паролей",
+                            color = FirefoxTextPrimary,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = if (searchQuery.isNotEmpty()) "Попробуйте изменить поисковый запрос." else "Войдите в аккаунт Mozilla с паролем для сквозной расшифровки ваших паролей из Mozilla Lockwise.",
+                            color = FirefoxTextSecondary,
+                            fontSize = 12.sp,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        )
+                    }
                 }
             } else {
                 LazyColumn(
