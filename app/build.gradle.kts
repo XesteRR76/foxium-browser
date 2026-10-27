@@ -11,12 +11,21 @@ android {
         applicationId = "com.foxium.browser"
         minSdk = 26
         targetSdk = 34
-        versionCode = 3
-        versionName = "1.2.0"
+        versionCode = 4
+        versionName = "1.2.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
             useSupportLibrary = true
+        }
+    }
+
+    signingConfigs {
+        create("release") {
+            storeFile = file("${rootProject.projectDir}/foxium-release.jks")
+            storePassword = "foxiumbrowser"
+            keyAlias = "foxium"
+            keyPassword = "foxiumbrowser"
         }
     }
 
@@ -27,8 +36,7 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            // Signs release with debug key by default so APK can be immediately installed from GitHub Actions
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName("release")
         }
         debug {
             applicationIdSuffix = ".debug"
