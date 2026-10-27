@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="firefox_dark_bg">#1C1B22</color>
+    <color name="firefox_surface">#2B2A33</color>
+    <color name="firefox_accent">#FF7139</color>
+    <color name="firefox_purple">#9059FF</color>
+</resources>
