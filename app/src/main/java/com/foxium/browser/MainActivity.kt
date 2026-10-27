@@ -8,24 +8,30 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.material3.Scaffold
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.foxium.browser.data.MozillaAccountManager
 import com.foxium.browser.data.SearchEngine
 import com.foxium.browser.data.TabModel
 import com.foxium.browser.ui.components.*
-import com.foxium.browser.ui.theme.FirefoxDarkBg
-import com.foxium.browser.ui.theme.FoxiumTheme
+import com.foxium.browser.ui.theme.*
 
 class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Read initial URL from intent if opened from another app
         val incomingUrl = intent?.data?.toString() ?: ""
 
         setContent {
+            val accountManager = remember { MozillaAccountManager(this@MainActivity) }
+            var userProfile by remember { mutableStateOf(accountManager.getProfile()) }
+            var showLoginDialog by remember { mutableStateOf(false) }
+
             var tabs by remember {
                 val initialTab = TabModel(
                     url = if (incomingUrl.isNotBlank()) incomingUrl else "foxium:home",
@@ -45,16 +51,35 @@ class MainActivity : ComponentActivity() {
 
             val activeTab = tabs.find { it.id == activeTabId } ?: tabs.first()
 
-            // Handle system back button (back navigation in WebView before exiting)
+            val openMozillaAuth: () -> Unit = {
+                val authTab = TabModel(
+                    url = MozillaAccountManager.MOZILLA_AUTH_URL,
+                    title = "Вход в аккаунт Mozilla"
+                )
+                tabs = tabs + authTab
+                activeTabId = authTab.id
+            }
+
+            val openMozillaSettings: () -> Unit = {
+                val settingsTab = TabModel(
+                    url = MozillaAccountManager.MOZILLA_SETTINGS_URL,
+                    title = "Аккаунт Mozilla"
+                )
+                tabs = tabs + settingsTab
+                activeTabId = settingsTab.id
+            }
+
+            // Handle system back button
             BackHandler(enabled = true) {
                 if (showTabTray) {
                     showTabTray = false
                 } else if (showMenu) {
                     showMenu = false
+                } else if (showLoginDialog) {
+                    showLoginDialog = false
                 } else if (currentWebView?.canGoBack() == true) {
                     currentWebView?.goBack()
                 } else if (!activeTab.isHome) {
-                    // Navigate to home screen
                     tabs = tabs.map {
                         if (it.id == activeTab.id) it.copy(url = "foxium:home", title = "Новая вкладка") else it
                     }
@@ -97,13 +122,16 @@ class MainActivity : ComponentActivity() {
                         if (activeTab.isHome) {
                             HomeScreen(
                                 isPrivate = activeTab.isPrivate,
+                                userProfile = userProfile,
                                 currentSearchEngine = currentSearchEngine,
                                 onSearchEngineChange = { currentSearchEngine = it },
                                 onOpenUrl = { targetUrl ->
                                     tabs = tabs.map {
                                         if (it.id == activeTab.id) it.copy(url = targetUrl, title = targetUrl) else it
                                     }
-                                }
+                                },
+                                onSignInMozilla = { showLoginDialog = true },
+                                onMozillaSettings = openMozillaSettings
                             )
                         } else {
                             BrowserView(
@@ -128,6 +156,10 @@ class MainActivity : ComponentActivity() {
                                     tabs = tabs.map {
                                         if (it.id == activeTab.id) it.copy(canGoBack = canBack, canGoForward = canFwd) else it
                                     }
+                                },
+                                onMozillaAuthDetected = { detectedEmail ->
+                                    accountManager.login(detectedEmail)
+                                    userProfile = accountManager.getProfile()
                                 },
                                 webViewInstance = { wv ->
                                     currentWebView = wv
@@ -188,6 +220,7 @@ class MainActivity : ComponentActivity() {
                             canGoForward = activeTab.canGoForward,
                             isDesktopMode = isDesktopMode,
                             isPrivate = activeTab.isPrivate,
+                            userProfile = userProfile,
                             onForward = { currentWebView?.goForward() },
                             onReload = { currentWebView?.reload() },
                             onToggleDesktop = {
@@ -207,7 +240,76 @@ class MainActivity : ComponentActivity() {
                                 tabs = tabs + privateTab
                                 activeTabId = privateTab.id
                             },
+                            onSignInMozilla = { showLoginDialog = true },
+                            onMozillaSettings = openMozillaSettings,
+                            onSignOutMozilla = {
+                                accountManager.logout()
+                                userProfile = accountManager.getProfile()
+                            },
                             onDismiss = { showMenu = false }
+                        )
+                    }
+
+                    // Mozilla Account Login Dialog
+                    if (showLoginDialog) {
+                        var inputEmail by remember { mutableStateOf("") }
+                        AlertDialog(
+                            onDismissRequest = { showLoginDialog = false },
+                            containerColor = FirefoxSurface,
+                            title = {
+                                Text(
+                                    text = "Вход в аккаунт Mozilla",
+                                    color = FirefoxTextPrimary,
+                                    fontSize = 18.sp
+                                )
+                            },
+                            text = {
+                                Column {
+                                    Text(
+                                        text = "Вы можете открыть официальную страницу входа Firefox Accounts или указать почту для привязки синхронизации:",
+                                        color = FirefoxTextSecondary,
+                                        fontSize = 13.sp
+                                    )
+                                    Spacer(modifier = Modifier.height(14.dp))
+                                    OutlinedTextField(
+                                        value = inputEmail,
+                                        onValueChange = { inputEmail = it },
+                                        placeholder = { Text("example@mozilla.com", color = FirefoxTextSecondary) },
+                                        singleLine = true,
+                                        colors = OutlinedTextFieldDefaults.colors(
+                                            focusedBorderColor = FirefoxPurple,
+                                            unfocusedBorderColor = FirefoxBorder,
+                                            focusedTextColor = FirefoxTextPrimary,
+                                            unfocusedTextColor = FirefoxTextPrimary
+                                        ),
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
+                                }
+                            },
+                            confirmButton = {
+                                Button(
+                                    onClick = {
+                                        val emailToUse = if (inputEmail.isNotBlank()) inputEmail.trim() else "user@mozilla.org"
+                                        accountManager.login(emailToUse)
+                                        userProfile = accountManager.getProfile()
+                                        showLoginDialog = false
+                                    },
+                                    colors = ButtonDefaults.buttonColors(containerColor = FirefoxPurple)
+                                ) {
+                                    Text("Привязать", color = androidx.compose.ui.graphics.Color.White)
+                                }
+                            },
+                            dismissButton = {
+                                TextButton(
+                                    onClick = {
+                                        showLoginDialog = false
+                                        openMozillaAuth()
+                                    }
+                                ) {
+                                    Text("Открыть Firefox.com", color = FirefoxOrange)
+                                }
+                            },
+                            shape = RoundedCornerShape(16.dp)
                         )
                     }
                 }

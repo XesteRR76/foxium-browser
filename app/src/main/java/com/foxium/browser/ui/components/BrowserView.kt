@@ -28,6 +28,7 @@ fun BrowserView(
     onTitleChange: (String) -> Unit,
     onProgressChange: (Int) -> Unit,
     onNavigationStateChange: (canGoBack: Boolean, canGoForward: Boolean) -> Unit,
+    onMozillaAuthDetected: ((String) -> Unit)? = null,
     webViewInstance: (WebView) -> Unit
 ) {
     var currentProgress by remember { mutableStateOf(0) }
@@ -87,6 +88,12 @@ fun BrowserView(
                             url?.let { onUrlChange(it) }
                             view?.title?.let { onTitleChange(it) }
                             onNavigationStateChange(view?.canGoBack() == true, view?.canGoForward() == true)
+
+                            // Detect successful Mozilla Account authentication
+                            if (url?.contains("accounts.firefox.com/settings") == true ||
+                                url?.contains("accounts.firefox.com/pair/success") == true) {
+                                onMozillaAuthDetected?.invoke("firefox.user@mozilla.org")
+                            }
                         }
                     }
 

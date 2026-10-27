@@ -14,6 +14,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.foxium.browser.data.MozillaUserProfile
 import com.foxium.browser.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -22,11 +23,15 @@ fun BrowserMenuSheet(
     canGoForward: Boolean,
     isDesktopMode: Boolean,
     isPrivate: Boolean,
+    userProfile: MozillaUserProfile,
     onForward: () -> Unit,
     onReload: () -> Unit,
     onToggleDesktop: () -> Unit,
     onShare: () -> Unit,
     onNewPrivateTab: () -> Unit,
+    onSignInMozilla: () -> Unit,
+    onMozillaSettings: () -> Unit,
+    onSignOutMozilla: () -> Unit,
     onDismiss: () -> Unit
 ) {
     ModalBottomSheet(
@@ -85,6 +90,29 @@ fun BrowserMenuSheet(
                     .height(0.5.dp)
                     .background(FirefoxBorder)
             )
+
+            // Mozilla Account Integration
+            if (!userProfile.isLoggedIn) {
+                MenuItem(
+                    icon = Icons.Default.AccountCircle,
+                    title = "Войти в аккаунт Mozilla (Синхронизация)",
+                    tint = FirefoxPurple,
+                    onClick = { onSignInMozilla(); onDismiss() }
+                )
+            } else {
+                MenuItem(
+                    icon = Icons.Default.Sync,
+                    title = "Аккаунт Mozilla (${userProfile.email.ifBlank { "Синхронизировано" }})",
+                    tint = FirefoxSuccessGreen,
+                    onClick = { onMozillaSettings(); onDismiss() }
+                )
+                MenuItem(
+                    icon = Icons.Default.Logout,
+                    title = "Выйти из аккаунта Mozilla",
+                    tint = FirefoxTextSecondary,
+                    onClick = { onSignOutMozilla(); onDismiss() }
+                )
+            }
 
             MenuItem(
                 icon = Icons.Default.VpnKey,
